@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="家务打卡">
+<title>家务打卡</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg: #F2F2F7;
+    --card: #FFFFFF;
+    --primary: #007AFF;
+    --primary-light: #E8F3FF;
+    --green: #34C759;
+    --green-light: #E8F8ED;
+    --red: #FF3B30;
+    --gray: #8E8E93;
+    --gray2: #C7C7CC;
+    --gray3: #F2F2F7;
+    --text: #000000;
+    --text2: #3C3C43;
+    --text3: #8E8E93;
+    --separator: rgba(60,60,67,0.12);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ---- Layout ---- */
+  #app { display: flex; flex-direction: column; min-height: 100vh; }
+
+  .page { display: none; flex: 1; flex-direction: column; }
+  .page.active { display: flex; }
+
+  /* ---- Identity Screen ---- */
+  #identity-page {
+    justify-content: center;
+    align-items: center;
+    padding: 40px 32px;
+    background: var(--card);
+  }
+
+  .identity-logo {
+    width: 80px; height: 80px;
+    background: linear-gradient(135deg, #007AFF, #5AC8FA);
+    border-radius: 20px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 24px rgba(0,122,255,0.3);
+  }
+
+  .identity-title { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  .identity-sub { font-size: 15px; color: var(--text3); margin-bottom: 48px; }
+
+  .identity-cards { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+
+  .identity-card {
+    background: var(--bg);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex; align-items: center; gap: 16px;
+    cursor: pointer;
+    transition: transform 0.1s, background 0.1s;
+    border: 2px solid transparent;
+  }
+  .identity-card:active { transform: scale(0.97); }
+  .identity-card.selected { border-color: var(--primary); background: var(--primary-light); }
+
+  .identity-avatar {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+  .avatar-re { background: linear-gradient(135deg, #FF9500, #FF6B00); }
+  .avatar-hc { background: linear-gradient(135deg, #AF52DE, #5E5CE6); }
+
+  .identity-info { flex: 1; }
+  .identity-name { font-size: 17px; font-weight: 600; }
+  .identity-desc { font-size: 13px; color: var(--text3); margin-top: 2px; }
+
+  .identity-check {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--gray2);
+    display: flex; align-items: center; justify-content: center;
+    color: white;
+    font-size: 13px;
+  }
+  .identity-card.selected .identity-check {
+    background: var(--primary);
+    border-color: var(--primary);
+  }
+
+  .btn-confirm {
+    width: 100%;
+    margin-top: 32px;
+    padding: 16px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.1s;
+  }
+  .btn-confirm:disabled { opacity: 0.4; }
+  .btn-confirm:active:not(:disabled) { opacity: 0.8; }
+
+  /* ---- Nav Bar ---- */
+  .nav-bar {
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 0.5px solid var(--separator);
+    padding: calc(var(--safe-top) + 12px) 16px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+
+  .nav-title { font-size: 17px; font-weight: 600; }
+  .nav-date { font-size: 13px; color: var(--text3); }
+
+  .nav-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+  }
+
+  /* ---- Tab Bar ---- */
+  .tab-bar {
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-top: 0.5px solid var(--separator);
+    padding: 8px 0 calc(var(--safe-bottom) + 8px);
+    display: flex;
+    position: sticky; bottom: 0; z-index: 100;
+  }
+
+  .tab-item {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    cursor: pointer;
+    padding: 4px 0;
+    color: var(--gray);
+    transition: color 0.15s;
+  }
+  .tab-item.active { color: var(--primary); }
+  .tab-icon { font-size: 22px; line-height: 1; }
+  .tab-label { font-size: 10px; font-weight: 500; }
+
+  /* ---- Scroll Content ---- */
+  .scroll-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    padding-bottom: 24px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ---- Section ---- */
+  .section { margin-bottom: 24px; }
+  .section-header {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0 4px;
+    margin-bottom: 8px;
+  }
+
+  .card-list {
+    background: var(--card);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  /* ---- Task Item ---- */
+  .task-item {
+    display: flex; align-items: center;
+    padding: 12px 16px;
+    gap: 12px;
+    cursor: pointer;
+    transition: background 0.1s;
+    position: relative;
+  }
+  .task-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 60px; right: 0;
+    height: 0.5px;
+    background: var(--separator);
+  }
+  .task-item:active { background: var(--gray3); }
+  .task-item.done { opacity: 0.5; }
+
+  .task-check {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--gray2);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    font-size: 14px;
+    color: white;
+  }
+  .task-item.done .task-check {
+    background: var(--green);
+    border-color: var(--green);
+  }
+
+  .task-body { flex: 1; min-width: 0; }
+  .task-name {
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+  .task-item.done .task-name { text-decoration: line-through; color: var(--text3); }
+  .task-sub {
+    font-size: 12px;
+    color: var(--text3);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .task-owner {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 20px;
+    flex-shrink: 0;
+  }
+  .owner-re { background: #FFF3E0; color: #E65100; }
+  .owner-hc { background: #F3E5F5; color: #6A1B9A; }
+
+  /* ---- Progress Bar ---- */
+  .progress-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .progress-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px;
+  }
+  .progress-label { font-size: 15px; font-weight: 600; }
+  .progress-count { font-size: 13px; color: var(--text3); }
+  .progress-bar-bg {
+    height: 6px;
+    background: var(--gray3);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--green);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+
+  /* ---- History Page ---- */
+  .history-item {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .history-date {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text3);
+    margin-bottom: 8px;
+  }
+  .history-stats {
+    display: flex; gap: 12px;
+  }
+  .history-stat {
+    flex: 1;
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+  }
+  .history-stat-num { font-size: 22px; font-weight: 700; }
+  .history-stat-label { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .stat-re .history-stat-num { color: #E65100; }
+  .stat-hc .history-stat-num { color: #6A1B9A; }
+
+  .history-tasks { margin-top: 10px; }
+  .history-task-chip {
+    display: inline-block;
+    font-size: 12px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    margin: 2px;
+    background: var(--green-light);
+    color: #1B5E20;
+  }
+
+  /* ---- Empty State ---- */
+  .empty-state {
+    text-align: center;
+    padding: 60px 32px;
+    color: var(--text3);
+  }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-text { font-size: 15px; }
+
+  /* ---- Toast ---- */
+  .toast {
+    position: fixed;
+    bottom: calc(var(--safe-bottom) + 80px);
+    left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.75);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 14px;
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  /* ---- Week badge ---- */
+  .week-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--primary-light);
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Identity Page -->
+  <div id="identity-page" class="page active">
+    <div class="identity-logo">🏠</div>
+    <div class="identity-title">家务打卡</div>
+    <div class="identity-sub">选择你的身份开始使用</div>
+    <div class="identity-cards">
+      <div class="identity-card" onclick="selectIdentity('re')" id="card-re">
+        <div class="identity-avatar avatar-re">🌸</div>
+        <div class="identity-info">
+          <div class="identity-name">re</div>
+          <div class="identity-desc">点击选择此身份</div>
+        </div>
+        <div class="identity-check" id="check-re"></div>
+      </div>
+      <div class="identity-card" onclick="selectIdentity('hc')" id="card-hc">
+        <div class="identity-avatar avatar-hc">⚡</div>
+        <div class="identity-info">
+          <div class="identity-name">hc</div>
+          <div class="identity-desc">点击选择此身份</div>
+        </div>
+        <div class="identity-check" id="check-hc"></div>
+      </div>
+    </div>
+    <button class="btn-confirm" id="btn-confirm" disabled onclick="confirmIdentity()">进入</button>
+  </div>
+
+  <!-- Main Page -->
+  <div id="main-page" class="page">
+    <div class="nav-bar">
+      <div>
+        <div class="nav-title" id="nav-title">今日任务</div>
+        <div class="nav-date" id="nav-date"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="week-badge" id="week-badge"></div>
+        <div class="nav-avatar" id="nav-avatar" onclick="switchUser()"></div>
+      </div>
+    </div>
+    <div class="scroll-content" id="main-scroll">
+      <div class="progress-card">
+        <div class="progress-header">
+          <div class="progress-label">今日进度</div>
+          <div class="progress-count" id="progress-count">0 / 0</div>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+        </div>
+      </div>
+      <div id="task-sections"></div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab-item active" onclick="switchTab('main')" id="tab-main">
+        <div class="tab-icon">✅</div>
+        <div class="tab-label">今日</div>
+      </div>
+      <div class="tab-item" onclick="switchTab('history')" id="tab-history">
+        <div class="tab-icon">📋</div>
+        <div class="tab-label">历史</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- History Page -->
+  <div id="history-page" class="page">
+    <div class="nav-bar">
+      <div>
+        <div class="nav-title">历史记录</div>
+        <div class="nav-date" id="history-nav-date"></div>
+      </div>
+      <div class="nav-avatar" id="history-avatar"></div>
+    </div>
+    <div class="scroll-content" id="history-scroll">
+      <div id="history-list"></div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab-item" onclick="switchTab('main')" id="tab-main2">
+        <div class="tab-icon">✅</div>
+        <div class="tab-label">今日</div>
+      </div>
+      <div class="tab-item active" onclick="switchTab('history')" id="tab-history2">
+        <div class="tab-icon">📋</div>
+        <div class="tab-label">历史</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDFMXMK2JjQy0ZZ46dAYshAtq8QpINZ00U",
+  authDomain: "family-37703.firebaseapp.com",
+  projectId: "family-37703",
+  storageBucket: "family-37703.firebasestorage.app",
+  messagingSenderId: "233249810913",
+  appId: "1:233249810913:web:656385201eb027dcaa0aa0",
+  databaseURL: "https://family-37703-default-rtdb.firebaseio.com"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// ---- Task Data ----
+// owner: first-week owner. Rotation flips every week based on ISO week number parity.
+const TASKS = [
+  // 餐厨
+  { id: 't01', cat: '餐厨', name: '做早饭（安安）', sub: '按时完成，营养搭配', freq: 'daily', owner: 're' },
+  { id: 't02', cat: '餐厨', name: '端菜上桌', sub: '所有菜品上桌，热菜保温', freq: 'daily', owner: 'hc' },
+  { id: 't03', cat: '餐厨', name: '刮掉碗盘大块残渣入厨余', sub: '水槽滤网无大块食物', freq: 'daily', owner: 'hc' },
+  { id: 't04', cat: '餐厨', name: '摆放碗筷进洗碗机', sub: '喷淋臂能旋转，碗口朝下', freq: 'daily', owner: 'hc' },
+  { id: 't05', cat: '餐厨', name: '清洗洗碗机内腔/滤网', sub: '无残渣，喷淋臂通畅', freq: 'daily', owner: 'hc' },
+  { id: 't06', cat: '餐厨', name: '洗碗机结束后开门散热', sub: '门半开，不积水汽', freq: 'daily', owner: 'hc' },
+  { id: 't07', cat: '餐厨', name: '取出碗碟归位', sub: '碗碟干爽，放入对应位置', freq: 'daily', owner: 'hc' },
+  { id: 't08', cat: '餐厨', name: '擦灶台/油烟机表面', sub: '无油渍，抹布洗净', freq: 'daily', owner: 're' },
+  { id: 't09', cat: '餐厨', name: '清理水槽滤网', sub: '无食物残渣，无异味', freq: 'daily', owner: 'hc' },
+  { id: 't10', cat: '餐厨', name: '倒厨余垃圾（湿垃圾）', sub: '垃圾袋更换，桶内清洁', freq: 'daily', owner: 'hc' },
+  { id: 't11', cat: '餐厨', name: '擦餐桌', sub: '桌面无残渣、无油渍', freq: 'daily', owner: 're' },
+  { id: 't12', cat: '餐厨', name: '归位调味品/佐料', sub: '放回固定位置', freq: 'daily', owner: 're' },
+  { id: 't13', cat: '餐厨', name: '冰箱除味/清理过期食物', sub: '无异味，无过期', freq: 'weekly', owner: 're' },
+  { id: 't14', cat: '餐厨', name: '手洗锅具/刀具/木制品', sub: '洗净晾干，无油污', freq: 'weekly', owner: 're' },
+  { id: 't15', cat: '餐厨', name: '清洁马桶/安安马桶', sub: '', freq: 'weekly', owner: 're' },
+  { id: 't16', cat: '餐厨', name: '门口垃圾处理', sub: '', freq: 'daily', owner: 're' },
+  // 衣物
+  { id: 't17', cat: '衣物', name: '分类洗衣（深/浅/特殊）', sub: '颜色分开，材质匹配程序', freq: 'weekly', owner: 'hc' },
+  { id: 't18', cat: '衣物', name: '烘干或晾晒', sub: '衣物平整，不堆积', freq: 'weekly', owner: 'hc' },
+  { id: 't19', cat: '衣物', name: '收衣服（从晾衣架取下）', sub: '干透即收，无褶皱', freq: 'daily', owner: 're' },
+  { id: 't20', cat: '衣物', name: '叠衣服', sub: '分类叠放，整齐', freq: 'daily', owner: 're' },
+  { id: 't21', cat: '衣物', name: '挂衣入柜（衬衫/外套等）', sub: '衣架方向统一，不拥挤', freq: 'daily', owner: 're' },
+  // 清洁与收纳
+  { id: 't22', cat: '清洁与收纳', name: '扫地（全屋）', sub: '无明显灰尘、毛发', freq: 'daily', owner: 'hc' },
+  { id: 't23', cat: '清洁与收纳', name: '拖地（湿拖）', sub: '地面无水渍、不粘脚', freq: 'daily', owner: 'hc' },
+  { id: 't24', cat: '清洁与收纳', name: '沙发缝/沙发底下', sub: '无碎屑、宠物毛', freq: 'weekly', owner: 'hc' },
+  { id: 't25', cat: '清洁与收纳', name: '机器人清理', sub: '', freq: 'weekly', owner: 'hc' },
+  { id: 't26', cat: '清洁与收纳', name: '倒客厅垃圾', sub: '整理垃圾，并套好垃圾袋', freq: 'daily', owner: 're' },
+  { id: 't27', cat: '清洁与收纳', name: '卫生间垃圾', sub: '整理垃圾，并套好垃圾袋', freq: 'daily', owner: 're' },
+  { id: 't28', cat: '清洁与收纳', name: '整理客厅（遥控器/玩具/杂物）', sub: '物品归位，台面清爽', freq: 'daily', owner: 'hc' },
+  { id: 't29', cat: '清洁与收纳', name: '整理沙发（靠垫/玩具/衣物）', sub: '靠垫、玩具归位，无衣物', freq: 'daily', owner: 'hc' },
+  // 育儿照料
+  { id: 't30', cat: '育儿照料', name: '早上叫醒孩子', sub: '按时起床，不迟到', freq: 'daily', owner: 're' },
+  { id: 't31', cat: '育儿照料', name: '哄睡/陪睡', sub: '按时熄灯，安静入睡', freq: 'daily', owner: 're' },
+  { id: 't32', cat: '育儿照料', name: '帮助孩子穿衣/整理校服', sub: '衣着整洁，季节合适', freq: 'daily', owner: 're' },
+  { id: 't33', cat: '育儿照料', name: '送学', sub: '准时到校/到家，安全交接', freq: 'daily', owner: 're' },
+  { id: 't34', cat: '育儿照料', name: '接学', sub: '从朱行接到罗阳', freq: 'daily', owner: 'hc' },
+  { id: 't35', cat: '育儿照料', name: '准备孩子早餐', sub: '营养均衡，分量适合', freq: 'daily', owner: 'hc' },
+  { id: 't36', cat: '育儿照料', name: '梳头', sub: '', freq: 'daily', owner: 're' },
+  { id: 't37', cat: '育儿照料', name: '督促孩子刷牙/洗脸', sub: '牙刷干净，不敷衍，涂润肤露、防晒霜', freq: 'daily', owner: 're' },
+  { id: 't38', cat: '育儿照料', name: '给孩子洗屁股', sub: '', freq: 'daily', owner: 'hc' },
+  { id: 't39', cat: '育儿照料', name: '洗完屁股穿衣服、后续流程', sub: '抱回房间、擦干屁股、涂护臀膏、检查衣服', freq: 'daily', owner: 're' },
+  { id: 't40', cat: '育儿照料', name: '给孩子洗澡', sub: '水温合适，洗净屁股，脸，擦干身体', freq: 'weekly', owner: 're' },
+  { id: 't41', cat: '育儿照料', name: '洗澡前准备工作', sub: '毛巾/内衣裤/吹风机', freq: 'weekly', owner: 'hc' },
+  { id: 't42', cat: '育儿照料', name: '洗澡后善后工作', sub: '淋浴房整理/孩子衣服整理/卫生间通风', freq: 'weekly', owner: 'hc' },
+  { id: 't43', cat: '育儿照料', name: '陪做作业/学习', sub: '完成当日任务，不懂讲解', freq: 'daily', owner: 'hc' },
+  { id: 't44', cat: '育儿照料', name: '准备孩子次日衣物', sub: '叠好放在床头', freq: 'daily', owner: 'hc' },
+  { id: 't45', cat: '育儿照料', name: '早上小马桶清理', sub: '查看马桶是否有尿', freq: 'daily', owner: 're' },
+  { id: 't46', cat: '育儿照料', name: '兴趣班接送', sub: '准时，带齐用具', freq: 'weekly', owner: 'hc' },
+  // 家庭运营
+  { id: 't47', cat: '家庭运营', name: '采购日用品', sub: '纸巾/洗护/垃圾袋，不断档', freq: 'weekly', owner: 'hc' },
+  { id: 't48', cat: '家庭运营', name: '缴纳水电燃气/物业/网络费', sub: '无滞纳金，保存凭证', freq: 'weekly', owner: 'hc' },
+  { id: 't49', cat: '家庭运营', name: '饮水机的水', sub: '去除剩余水，补充水', freq: 'weekly', owner: 'hc' },
+  { id: 't50', cat: '家庭运营', name: '准备孩子出门用品/水杯/零食', sub: '水杯灌满，零食补给', freq: 'weekly', owner: 'hc' },
+];
+
+// ---- Week Rotation ----
+// ISO week 1 = odd → use first-week owner; even → flip
+function getISOWeek(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+function getEffectiveOwner(task, date) {
+  const week = getISOWeek(date);
+  const flip = week % 2 === 0;
+  if (!flip) return task.owner;
+  return task.owner === 're' ? 'hc' : 're';
+}
+
+function dateKey(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+// ---- State ----
+let currentUser = localStorage.getItem('familyUser') || null;
+let todayChecks = {}; // { taskId: { re: bool, hc: bool } }
+let unsubscribe = null;
+
+// ---- Init ----
+window.selectIdentity = function(id) {
+  document.querySelectorAll('.identity-card').forEach(c => c.classList.remove('selected'));
+  document.querySelectorAll('.identity-check').forEach(c => c.textContent = '');
+  document.getElementById('card-' + id).classList.add('selected');
+  document.getElementById('check-' + id).textContent = '✓';
+  document.getElementById('btn-confirm').disabled = false;
+  document.getElementById('btn-confirm').dataset.selected = id;
+};
+
+window.confirmIdentity = function() {
+  const id = document.getElementById('btn-confirm').dataset.selected;
+  if (!id) return;
+  currentUser = id;
+  localStorage.setItem('familyUser', id);
+  showMainPage();
+};
+
+// Auto-login if saved
+if (currentUser) {
+  showMainPage();
+} else {
+  showPage('identity-page');
+}
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showMainPage() {
+  showPage('main-page');
+  updateNavInfo();
+  subscribeToday();
+  switchTab('main');
+}
+
+function updateNavInfo() {
+  const today = new Date();
+  const week = getISOWeek(today);
+  const days = ['日','一','二','三','四','五','六'];
+  document.getElementById('nav-date').textContent =
+    `${today.getMonth()+1}月${today.getDate()}日 周${days[today.getDay()]}`;
+  document.getElementById('history-nav-date').textContent =
+    `${today.getMonth()+1}月${today.getDate()}日`;
+  document.getElementById('week-badge').textContent = `第${week}周`;
+  const avatarEmoji = currentUser === 're' ? '🌸' : '⚡';
+  document.getElementById('nav-avatar').textContent = avatarEmoji;
+  document.getElementById('history-avatar').textContent = avatarEmoji;
+}
+
+// ---- Firebase Sync ----
+function subscribeToday() {
+  const key = dateKey(new Date());
+  const r = ref(db, 'checks/' + key);
+  if (unsubscribe) unsubscribe();
+  unsubscribe = onValue(r, snap => {
+    todayChecks = snap.val() || {};
+    renderTasks();
+  });
+}
+
+window.toggleTask = async function(taskId) {
+  const key = dateKey(new Date());
+  const cur = (todayChecks[taskId] || {})[currentUser] || false;
+  const updates = {};
+  updates[`checks/${key}/${taskId}/${currentUser}`] = !cur;
+  await update(ref(db), updates);
+  showToast(!cur ? '已完成 ✓' : '已取消');
+};
+
+// ---- Render Tasks ----
+function renderTasks() {
+  const today = new Date();
+  const myTasks = TASKS.filter(t => getEffectiveOwner(t, today) === currentUser);
+
+  let done = 0;
+  myTasks.forEach(t => {
+    if ((todayChecks[t.id] || {})[currentUser]) done++;
+  });
+
+  document.getElementById('progress-count').textContent = `${done} / ${myTasks.length}`;
+  const pct = myTasks.length ? Math.round(done / myTasks.length * 100) : 0;
+  document.getElementById('progress-fill').style.width = pct + '%';
+
+  // Group by category
+  const cats = {};
+  myTasks.forEach(t => {
+    if (!cats[t.cat]) cats[t.cat] = [];
+    cats[t.cat].push(t);
+  });
+
+  const container = document.getElementById('task-sections');
+  container.innerHTML = '';
+
+  Object.entries(cats).forEach(([cat, tasks]) => {
+    const sec = document.createElement('div');
+    sec.className = 'section';
+    sec.innerHTML = `<div class="section-header">${cat}</div>`;
+    const list = document.createElement('div');
+    list.className = 'card-list';
+    tasks.forEach(t => {
+      const isDone = !!(todayChecks[t.id] || {})[currentUser];
+      const item = document.createElement('div');
+      item.className = 'task-item' + (isDone ? ' done' : '');
+      item.onclick = () => toggleTask(t.id);
+      item.innerHTML = `
+        <div class="task-check">${isDone ? '✓' : ''}</div>
+        <div class="task-body">
+          <div class="task-name">${t.name}</div>
+          ${t.sub ? `<div class="task-sub">${t.sub}</div>` : ''}
+        </div>
+        <div class="task-owner owner-${currentUser}">${currentUser}</div>
+      `;
+      list.appendChild(item);
+    });
+    sec.appendChild(list);
+    container.appendChild(sec);
+  });
+}
+
+// ---- History ----
+async function loadHistory() {
+  const histSnap = await get(ref(db, 'checks'));
+  const allData = histSnap.val() || {};
+  const today = dateKey(new Date());
+
+  const dates = Object.keys(allData)
+    .filter(d => d !== today)
+    .sort((a, b) => b.localeCompare(a))
+    .slice(0, 30);
+
+  const container = document.getElementById('history-list');
+  container.innerHTML = '';
+
+  if (dates.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">暂无历史记录</div></div>`;
+    return;
+  }
+
+  dates.forEach(dateStr => {
+    const checks = allData[dateStr];
+    const d = new Date(dateStr + 'T00:00:00');
+    const week = getISOWeek(d);
+    const days = ['日','一','二','三','四','五','六'];
+
+    let reCount = 0, hcCount = 0;
+    const reDone = [], hcDone = [];
+
+    TASKS.forEach(t => {
+      const owner = getEffectiveOwner(t, d);
+      const isDone = !!(checks[t.id] || {})[owner];
+      if (owner === 're') { if (isDone) { reCount++; reDone.push(t.name); } }
+      else { if (isDone) { hcCount++; hcDone.push(t.name); } }
+    });
+
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.innerHTML = `
+      <div class="history-date">${d.getMonth()+1}月${d.getDate()}日 周${days[d.getDay()]} · 第${week}周</div>
+      <div class="history-stats">
+        <div class="history-stat stat-re">
+          <div class="history-stat-num">${reCount}</div>
+          <div class="history-stat-label">🌸 re 完成</div>
+        </div>
+        <div class="history-stat stat-hc">
+          <div class="history-stat-num">${hcCount}</div>
+          <div class="history-stat-label">⚡ hc 完成</div>
+        </div>
+      </div>
+      ${(reDone.length + hcDone.length) > 0 ? `
+      <div class="history-tasks">
+        ${[...reDone, ...hcDone].map(n => `<span class="history-task-chip">${n}</span>`).join('')}
+      </div>` : ''}
+    `;
+    container.appendChild(item);
+  });
+}
+
+// ---- Tab Switch ----
+window.switchTab = function(tab) {
+  if (tab === 'main') {
+    showPage('main-page');
+    document.getElementById('tab-main').classList.add('active');
+    document.getElementById('tab-history').classList.remove('active');
+  } else {
+    showPage('history-page');
+    document.getElementById('tab-main2').classList.remove('active');
+    document.getElementById('tab-history2').classList.add('active');
+    loadHistory();
+  }
+};
+
+// ---- Switch User ----
+window.switchUser = function() {
+  if (confirm('切换身份？当前身份：' + currentUser)) {
+    localStorage.removeItem('familyUser');
+    currentUser = null;
+    if (unsubscribe) unsubscribe();
+    showPage('identity-page');
+  }
+};
+
+// ---- Toast ----
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1500);
+}
+
+window.showToast = showToast;
+</script>
+</body>
+</html>
