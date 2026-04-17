@@ -6,6 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="家务打卡">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>家务打卡</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -366,7 +369,7 @@
     <div class="identity-title">家务打卡</div>
     <div class="identity-sub">选择你的身份开始使用</div>
     <div class="identity-cards">
-      <div class="identity-card" onclick="selectIdentity('re')" id="card-re">
+      <div class="identity-card" id="card-re">
         <div class="identity-avatar avatar-re">🌸</div>
         <div class="identity-info">
           <div class="identity-name">re</div>
@@ -374,7 +377,7 @@
         </div>
         <div class="identity-check" id="check-re"></div>
       </div>
-      <div class="identity-card" onclick="selectIdentity('hc')" id="card-hc">
+      <div class="identity-card" id="card-hc">
         <div class="identity-avatar avatar-hc">⚡</div>
         <div class="identity-info">
           <div class="identity-name">hc</div>
@@ -383,7 +386,7 @@
         <div class="identity-check" id="check-hc"></div>
       </div>
     </div>
-    <button class="btn-confirm" id="btn-confirm" disabled onclick="confirmIdentity()">进入</button>
+    <button class="btn-confirm" id="btn-confirm" disabled>进入</button>
   </div>
 
   <!-- Main Page -->
@@ -395,7 +398,7 @@
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <div class="week-badge" id="week-badge"></div>
-        <div class="nav-avatar" id="nav-avatar" onclick="switchUser()"></div>
+        <div class="nav-avatar" id="nav-avatar"></div>
       </div>
     </div>
     <div class="scroll-content" id="main-scroll">
@@ -411,11 +414,11 @@
       <div id="task-sections"></div>
     </div>
     <div class="tab-bar">
-      <div class="tab-item active" onclick="switchTab('main')" id="tab-main">
+      <div class="tab-item active" id="tab-main">
         <div class="tab-icon">✅</div>
         <div class="tab-label">今日</div>
       </div>
-      <div class="tab-item" onclick="switchTab('history')" id="tab-history">
+      <div class="tab-item" id="tab-history">
         <div class="tab-icon">📋</div>
         <div class="tab-label">历史</div>
       </div>
@@ -435,11 +438,11 @@
       <div id="history-list"></div>
     </div>
     <div class="tab-bar">
-      <div class="tab-item" onclick="switchTab('main')" id="tab-main2">
+      <div class="tab-item" id="tab-main2">
         <div class="tab-icon">✅</div>
         <div class="tab-label">今日</div>
       </div>
-      <div class="tab-item active" onclick="switchTab('history')" id="tab-history2">
+      <div class="tab-item active" id="tab-history2">
         <div class="tab-icon">📋</div>
         <div class="tab-label">历史</div>
       </div>
@@ -452,20 +455,23 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, get, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, get, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDFMXMK2JjQy0ZZ46dAYshAtq8QpINZ00U",
-  authDomain: "family-37703.firebaseapp.com",
-  projectId: "family-37703",
-  storageBucket: "family-37703.firebasestorage.app",
-  messagingSenderId: "233249810913",
-  appId: "1:233249810913:web:656385201eb027dcaa0aa0",
-  databaseURL: "https://family-37703-default-rtdb.firebaseio.com"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+let db;
+try {
+  const app = initializeApp({
+    apiKey: "AIzaSyDFMXMK2JjQy0ZZ46dAYshAtq8QpINZ00U",
+    authDomain: "family-37703.firebaseapp.com",
+    projectId: "family-37703",
+    storageBucket: "family-37703.firebasestorage.app",
+    messagingSenderId: "233249810913",
+    appId: "1:233249810913:web:656385201eb027dcaa0aa0",
+    databaseURL: "https://family-37703-default-rtdb.firebaseio.com"
+  });
+  db = getDatabase(app);
+} catch(e) {
+  console.error('Firebase init failed', e);
+}
 
 // ---- Task Data ----
 // owner: week-1 owner (2026-04-14 ~ 2026-04-19). From 2026-04-20 onward, flips every Monday.
@@ -552,20 +558,20 @@ function dateKey(date) {
 
 // ---- State ----
 let currentUser = localStorage.getItem('familyUser') || null;
-let todayChecks = {}; // { taskId: { re: bool, hc: bool } }
+let todayChecks = {};
 let unsubscribe = null;
 
 // ---- Init ----
-window.selectIdentity = function(id) {
+function selectIdentity(id) {
   document.querySelectorAll('.identity-card').forEach(c => c.classList.remove('selected'));
   document.querySelectorAll('.identity-check').forEach(c => c.textContent = '');
   document.getElementById('card-' + id).classList.add('selected');
   document.getElementById('check-' + id).textContent = '✓';
   document.getElementById('btn-confirm').disabled = false;
   document.getElementById('btn-confirm').dataset.selected = id;
-};
+}
 
-window.confirmIdentity = function() {
+function confirmIdentity() {
   const id = document.getElementById('btn-confirm').dataset.selected;
   if (!id) return;
   currentUser = id;
@@ -608,11 +614,15 @@ function updateNavInfo() {
 
 // ---- Firebase Sync ----
 function subscribeToday() {
+  if (!db) { renderTasks(); return; }
   const key = dateKey(new Date());
   const r = ref(db, 'checks/' + key);
   if (unsubscribe) unsubscribe();
   unsubscribe = onValue(r, snap => {
     todayChecks = snap.val() || {};
+    renderTasks();
+  }, err => {
+    console.error('Firebase read error', err);
     renderTasks();
   });
 }
@@ -620,17 +630,16 @@ function subscribeToday() {
 window.toggleTask = async function(taskId) {
   const key = dateKey(new Date());
   const cur = (todayChecks[taskId] || {})[currentUser] || false;
-  // optimistic update
   if (!todayChecks[taskId]) todayChecks[taskId] = {};
   todayChecks[taskId][currentUser] = !cur;
   renderTasks();
   showToast(!cur ? '已完成 ✓' : '已取消');
+  if (!db) return;
   try {
     const updates = {};
     updates[`checks/${key}/${taskId}/${currentUser}`] = !cur;
     await update(ref(db), updates);
   } catch (e) {
-    // rollback on failure
     todayChecks[taskId][currentUser] = cur;
     renderTasks();
     showToast('同步失败，请检查网络');
@@ -760,14 +769,14 @@ window.switchTab = function(tab) {
 };
 
 // ---- Switch User ----
-window.switchUser = function() {
+function switchUser() {
   if (confirm('切换身份？当前身份：' + currentUser)) {
     localStorage.removeItem('familyUser');
     currentUser = null;
     if (unsubscribe) unsubscribe();
     showPage('identity-page');
   }
-};
+}
 
 // ---- Toast ----
 function showToast(msg) {
@@ -777,7 +786,15 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 1500);
 }
 
-window.showToast = showToast;
+// ---- Bind all events after DOM ready ----
+document.getElementById('card-re').addEventListener('click', () => selectIdentity('re'));
+document.getElementById('card-hc').addEventListener('click', () => selectIdentity('hc'));
+document.getElementById('btn-confirm').addEventListener('click', confirmIdentity);
+document.getElementById('nav-avatar').addEventListener('click', switchUser);
+document.getElementById('tab-main').addEventListener('click', () => switchTab('main'));
+document.getElementById('tab-history').addEventListener('click', () => switchTab('history'));
+document.getElementById('tab-main2').addEventListener('click', () => switchTab('main'));
+document.getElementById('tab-history2').addEventListener('click', () => switchTab('history'));
 </script>
 </body>
 </html>
