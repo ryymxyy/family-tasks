@@ -468,7 +468,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 // ---- Task Data ----
-// owner: first-week owner. Rotation flips every week based on ISO week number parity.
+// owner: week-1 owner (2026-04-14 ~ 2026-04-19). From 2026-04-20 onward, flips every Monday.
 const TASKS = [
   // 餐厨
   { id: 't01', cat: '餐厨', name: '做早饭（安安）', sub: '按时完成，营养搭配', freq: 'daily', owner: 're' },
@@ -528,17 +528,20 @@ const TASKS = [
 ];
 
 // ---- Week Rotation ----
-// ISO week 1 = odd → use first-week owner; even → flip
-function getISOWeek(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+// Week 1 anchor: 2026-04-13 (Monday). Every Monday after that flips owners.
+const WEEK1_MONDAY = new Date('2026-04-13T00:00:00');
+
+function getWeekNumber(date) {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // rewind to Monday
+  const diff = monday - WEEK1_MONDAY;
+  return Math.floor(diff / (7 * 86400000)); // 0-indexed weeks since anchor
 }
 
 function getEffectiveOwner(task, date) {
-  const week = getISOWeek(date);
-  const flip = week % 2 === 0;
+  const weekNum = getWeekNumber(date);
+  const flip = weekNum % 2 !== 0; // week 0 = original, week 1 = flipped, etc.
   if (!flip) return task.owner;
   return task.owner === 're' ? 'hc' : 're';
 }
@@ -591,7 +594,7 @@ function showMainPage() {
 
 function updateNavInfo() {
   const today = new Date();
-  const week = getISOWeek(today);
+  const week = getWeekNumber(today) + 1;
   const days = ['日','一','二','三','四','五','六'];
   document.getElementById('nav-date').textContent =
     `${today.getMonth()+1}月${today.getDate()}日 周${days[today.getDay()]}`;
@@ -695,7 +698,7 @@ async function loadHistory() {
   dates.forEach(dateStr => {
     const checks = allData[dateStr];
     const d = new Date(dateStr + 'T00:00:00');
-    const week = getISOWeek(d);
+    const week = getWeekNumber(d) + 1;
     const days = ['日','一','二','三','四','五','六'];
 
     let reCount = 0, hcCount = 0;
