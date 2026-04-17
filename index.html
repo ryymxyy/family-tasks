@@ -620,10 +620,21 @@ function subscribeToday() {
 window.toggleTask = async function(taskId) {
   const key = dateKey(new Date());
   const cur = (todayChecks[taskId] || {})[currentUser] || false;
-  const updates = {};
-  updates[`checks/${key}/${taskId}/${currentUser}`] = !cur;
-  await update(ref(db), updates);
+  // optimistic update
+  if (!todayChecks[taskId]) todayChecks[taskId] = {};
+  todayChecks[taskId][currentUser] = !cur;
+  renderTasks();
   showToast(!cur ? '已完成 ✓' : '已取消');
+  try {
+    const updates = {};
+    updates[`checks/${key}/${taskId}/${currentUser}`] = !cur;
+    await update(ref(db), updates);
+  } catch (e) {
+    // rollback on failure
+    todayChecks[taskId][currentUser] = cur;
+    renderTasks();
+    showToast('同步失败，请检查网络');
+  }
 };
 
 // ---- Render Tasks ----
