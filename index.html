@@ -680,7 +680,6 @@ function renderTasks() {
       const isDone = !!(todayChecks[t.id] || {})[currentUser];
       const item = document.createElement('div');
       item.className = 'task-item' + (isDone ? ' done' : '');
-      item.onclick = () => toggleTask(t.id);
       item.innerHTML = `
         <div class="task-check">${isDone ? '✓' : ''}</div>
         <div class="task-body">
@@ -689,6 +688,7 @@ function renderTasks() {
         </div>
         <div class="task-owner owner-${currentUser}">${currentUser}</div>
       `;
+      item.addEventListener('click', () => toggleTask(t.id));
       list.appendChild(item);
     });
     sec.appendChild(list);
